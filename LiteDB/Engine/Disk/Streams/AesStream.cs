@@ -88,14 +88,25 @@ namespace LiteDB.Engine
 
                 _aes = Aes.Create();
                 _aes.Padding = PaddingMode.None;
-                _aes.Mode = CipherMode.ECB;
+                _aes.Mode = CipherMode.CBC;
 
                 var pdb = new Rfc2898DeriveBytes(password, this.Salt);
 
                 using (pdb as IDisposable)
                 {
                     _aes.Key = pdb.GetBytes(32);
-                    _aes.IV = pdb.GetBytes(16);
+                }
+
+                if (isNew)
+                {
+                    _aes.GenerateIV();
+                    _stream.Write(_aes.IV, 0, _aes.IV.Length); // Store IV for decryption
+                }
+                else
+                {
+                    var iv = new byte[_aes.BlockSize / 8];
+                    _stream.Read(iv, 0, iv.Length); // Read stored IV
+                    _aes.IV = iv;
                 }
 
                 _encryptor = _aes.CreateEncryptor();
